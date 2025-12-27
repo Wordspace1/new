@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil Nika123 - Simple</title>
+    <title>Profil Nika123 - Auto Save</title>
     <style>
         :root {
             --primary: #0095f6;
@@ -207,6 +207,7 @@
             <input type="password" id="code" class="input-box" placeholder="Kode (333)">
             <button class="btn-login" onclick="attemptLogin()">Masuk</button>
             <p style="margin-top:10px; font-size:12px; color:#888;">Gunakan: nika123 / 333</p>
+            <p style="margin-top:5px; font-size:10px; color:#888;">Data tersimpan otomatis</p>
         </div>
     </div>
 
@@ -216,6 +217,7 @@
         <div class="profile-header">
             <div class="profile-top">
                 <div class="avatar-container">
+                    <!-- Default image jika belum ada di storage -->
                     <img src="https://ui-avatars.com/api/?name=Nika+123&background=random&size=200" class="avatar" id="main-avatar">
                     <div class="verified-badge">✓</div>
                 </div>
@@ -260,7 +262,7 @@
         <div class="fab" onclick="openUploadModal()">+</div>
     </div>
 
-    <!-- 3. MODAL SALDO (FITUR TARIK DANA + QR CODE) -->
+    <!-- 3. MODAL SALDO -->
     <div class="modal" id="saldo-modal">
         <div class="modal-content">
             <div class="edit-header">
@@ -291,10 +293,8 @@
 
                 <button class="btn-tarik" id="btn-tarik-act" onclick="prosesTarik()">Tarik Sekarang</button>
                 
-                <!-- TULISAN PADDING -->
                 <div class="padding-text" id="padding-text">Padding... Sedang memproses ke server Dana...</div>
                 
-                <!-- CONTAINER QR CODE -->
                 <div id="qr-container">
                     <p style="font-size:12px; color:#666; margin-bottom:5px;">Scan QR ini di Dana</p>
                     <img id="qr-image" src="" alt="QR Code">
@@ -351,7 +351,7 @@
         </div>
     </div>
 
-    <!-- 6. MODAL LIHAT POSTINGAN (POLOS TANPA LIKE & KOMEN) -->
+    <!-- 6. MODAL LIHAT POSTINGAN -->
     <div class="modal" id="view-modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="edit-header">
@@ -360,7 +360,6 @@
             </div>
             <div class="modal-body" id="view-media-container" style="padding:0;"></div>
             <div style="padding: 15px;">
-                <!-- TIDAK ADA LIKE & KOMEN DISINI SESUAI REQUEST -->
                 <p><span style="font-weight: bold;">nika123</span> <span id="view-caption"></span></p>
                 <p style="color: gray; font-size: 12px; margin-top: 5px;">BARU SAJA</p>
             </div>
@@ -369,13 +368,33 @@
 
 <script>
     // --- DATA & STATE ---
-    let posts = [];
-    let saldo = 112000; // SALDO AWAL 112K
+    // Kita coba ambil data dari localStorage saat inisialisasi
+    let posts = JSON.parse(localStorage.getItem('nika_posts')) || [];
+    let saldo = 112000; 
+    
+    // Profil Default
+    let userProfile = JSON.parse(localStorage.getItem('nika_profile')) || {
+        name: "Nika Keren ✓",
+        bio: "🌟 Simple | 100k Fam",
+        avatar: "https://ui-avatars.com/api/?name=Nika+123&background=random&size=200"
+    };
     
     // Format Angka
     const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
 
-    // --- 1. LOGIN FUNCTION ---
+    // --- 1. FUNGSI LOAD DATA (SAAT LOGIN) ---
+    function loadData() {
+        // 1. Load Profil
+        document.getElementById('display-name').innerText = userProfile.name;
+        document.getElementById('display-bio').innerText = userProfile.bio;
+        document.getElementById('main-avatar').src = userProfile.avatar;
+
+        // 2. Load Postingan
+        renderFeed();
+        document.getElementById('post-count').innerText = posts.length;
+    }
+
+    // --- 2. LOGIN FUNCTION ---
     function attemptLogin() {
         const u = document.getElementById('username').value;
         const c = document.getElementById('code').value;
@@ -383,7 +402,9 @@
         if (u === 'nika123' && c === '333') {
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'block';
-            // Update tampilan saldo awal
+            
+            // PANGGIL FUNGSI LOAD DATA AGAR TIDAK HILANG
+            loadData();
             updateSaldoDisplay();
         } else {
             alert("Username atau Kode salah! Coba lagi.");
@@ -395,77 +416,7 @@
         document.getElementById('modal-saldo-display').innerText = formatNumber(saldo);
     }
 
-    // --- 2. SALDO & TARIK DANA (DENGAN QR CODE) ---
-    function openSaldoModal() {
-        document.getElementById('saldo-modal').style.display = 'flex';
-        updateSaldoDisplay();
-        
-        // Reset UI
-        document.getElementById('tarik-jumlah').value = '';
-        document.getElementById('tarik-dana').value = '';
-        document.getElementById('tarik-nama').value = '';
-        document.getElementById('padding-text').style.display = 'none';
-        document.getElementById('qr-container').style.display = 'none';
-        document.getElementById('btn-tarik-act').style.display = 'block';
-    }
-
-    function closeSaldoModal() {
-        document.getElementById('saldo-modal').style.display = 'none';
-    }
-
-    function prosesTarik() {
-        const jumlahInput = document.getElementById('tarik-jumlah').value;
-        const dana = document.getElementById('tarik-dana').value;
-        const nama = document.getElementById('tarik-nama').value;
-
-        if (!jumlahInput || !dana || !nama) {
-            alert("Mohon isi semua data!");
-            return;
-        }
-
-        const jumlah = parseInt(jumlahInput);
-
-        // Validasi Saldo
-        if (jumlah > saldo) {
-            alert("Saldo Anda tidak mencukupi!");
-            return;
-        }
-
-        const btn = document.getElementById('btn-tarik-act');
-        const loadingText = document.getElementById('padding-text');
-        const qrContainer = document.getElementById('qr-container');
-        const qrImage = document.getElementById('qr-image');
-
-        // Langkah 1: Sembunyikan tombol, Muncul Padding
-        btn.style.display = 'none';
-        loadingText.style.display = 'block';
-
-        // Proses Padding (3 Detik)
-        setTimeout(() => {
-            loadingText.style.display = 'none';
-            
-            // Langkah 2: Tampilkan QR Code
-            qrContainer.style.display = 'block';
-            // Generate QR Code dummy untuk tampilan
-            qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TRANSFER-DANA-${jumlah}-${Date.now()}`;
-
-            // Proses Tampil QR (5 Detik)
-            setTimeout(() => {
-                // Langkah 3: Selesai
-                saldo -= jumlah;
-                updateSaldoDisplay();
-                
-                qrContainer.style.display = 'none';
-                btn.style.display = 'block';
-                
-                closeSaldoModal();
-                alert(`Berhasil!\nRp ${jumlah.toLocaleString()} telah dikirim ke ${nama}.`);
-            }, 5000); // 5 Detik QR Code muncul
-
-        }, 3000); // 3 Detik Padding
-    }
-
-    // --- 3. EDIT PROFIL FUNCTIONS ---
+    // --- 3. EDIT PROFIL (DISIMPAN KE LOCAL STORAGE) ---
     function openEditModal() {
         const modal = document.getElementById('edit-modal');
         const nameInput = document.getElementById('edit-name-input');
@@ -473,6 +424,7 @@
         const previewImg = document.getElementById('edit-avatar-preview');
         const currentAvatar = document.getElementById('main-avatar');
 
+        // Isi form dengan data saat ini
         nameInput.value = document.getElementById('display-name').innerText;
         bioInput.value = document.getElementById('display-bio').innerText;
         previewImg.src = currentAvatar.src;
@@ -484,11 +436,14 @@
         document.getElementById('edit-modal').style.display = 'none';
     }
 
+    let tempAvatarBase64 = ""; // Menyimpan sementara gambar dalam format base64
+
     function previewPP(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 document.getElementById('edit-avatar-preview').src = e.target.result;
+                tempAvatarBase64 = e.target.result; // Simpan string base64
             }
             reader.readAsDataURL(input.files[0]);
         }
@@ -497,17 +452,34 @@
     function saveProfile() {
         const newName = document.getElementById('edit-name-input').value;
         const newBio = document.getElementById('edit-bio-input').value;
-        const newPreviewSrc = document.getElementById('edit-avatar-preview').src;
+        
+        // Gunakan avatar baru jika diupload, pakai yang lama jika tidak
+        const newAvatar = tempAvatarBase64 || document.getElementById('edit-avatar-preview').src;
 
-        document.getElementById('display-name').innerText = newName;
-        document.getElementById('display-bio').innerText = newBio;
-        document.getElementById('main-avatar').src = newPreviewSrc;
+        // Update Object Profil
+        userProfile = {
+            name: newName,
+            bio: newBio,
+            avatar: newAvatar
+        };
 
-        closeEditModal();
-        alert("Profil berhasil diperbarui!");
+        // SIMPAN KE LOCAL STORAGE
+        try {
+            localStorage.setItem('nika_profile', JSON.stringify(userProfile));
+            
+            // Update UI Langsung
+            document.getElementById('display-name').innerText = newName;
+            document.getElementById('display-bio').innerText = newBio;
+            document.getElementById('main-avatar').src = newAvatar;
+
+            closeEditModal();
+            alert("Profil berhasil diperbarui dan disimpan!");
+        } catch (e) {
+            alert("Gagal menyimpan profil. Ukuran foto mungkin terlalu besar.");
+        }
     }
 
-    // --- 4. POSTING FUNCTIONS (POLOS) ---
+    // --- 4. POSTING FUNCTIONS (DISIMPAN KE LOCAL STORAGE) ---
     function toggleFileInput() {
         const type = document.getElementById('type-select').value;
         const fileInput = document.getElementById('file-input');
@@ -526,7 +498,15 @@
         document.getElementById('caption-input').value = '';
     }
 
-    function uploadPost() {
+    // Helper untuk convert file ke Base64 agar bisa disimpan di LocalStorage
+    const fileToBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+
+    async function uploadPost() {
         const caption = document.getElementById('caption-input').value;
         const type = document.getElementById('type-select').value;
         const fileInput = document.getElementById('file-input');
@@ -536,22 +516,36 @@
             return;
         }
 
-        const file = fileInput.files[0];
-        const fileUrl = URL.createObjectURL(file);
+        try {
+            // Konversi file jadi Base64 String
+            const fileBase64 = await fileToBase64(fileInput.files[0]);
 
-        // POSTINGAN POLOS TANPA LIKE & KOMEN
-        const newPost = {
-            id: Date.now(),
-            type: type, 
-            url: fileUrl, 
-            caption: caption || "Postingan baru!"
-        };
+            const newPost = {
+                id: Date.now(),
+                type: type, 
+                url: fileBase64, // Simpan string base64, bukan URL blob
+                caption: caption || "Postingan baru!"
+            };
 
-        posts.unshift(newPost); 
-        renderFeed();
-        
-        document.getElementById('post-count').innerText = posts.length;
-        closeUploadModal();
+            posts.unshift(newPost); // Tambah ke paling atas
+            
+            // SIMPAN KE LOCAL STORAGE
+            try {
+                localStorage.setItem('nika_posts', JSON.stringify(posts));
+                
+                renderFeed();
+                document.getElementById('post-count').innerText = posts.length;
+                closeUploadModal();
+            } catch (e) {
+                alert("Memori Penuh! Postingan gagal disimpan. Coba file yang lebih kecil.");
+                // Kembalikan array posts jika gagal simpan
+                posts.shift();
+            }
+
+        } catch (error) {
+            console.error("Error reading file:", error);
+            alert("Gagal membaca file.");
+        }
     }
 
     function renderFeed() {
@@ -635,6 +629,67 @@
         }
     }
 
+    // --- LOGIC SALDO (TIDAK DISIMPAN AGAR BISA RESET) ---
+    function openSaldoModal() {
+        document.getElementById('saldo-modal').style.display = 'flex';
+        updateSaldoDisplay();
+        document.getElementById('tarik-jumlah').value = '';
+        document.getElementById('tarik-dana').value = '';
+        document.getElementById('tarik-nama').value = '';
+        document.getElementById('padding-text').style.display = 'none';
+        document.getElementById('qr-container').style.display = 'none';
+        document.getElementById('btn-tarik-act').style.display = 'block';
+    }
+
+    function closeSaldoModal() {
+        document.getElementById('saldo-modal').style.display = 'none';
+    }
+
+    function prosesTarik() {
+        const jumlahInput = document.getElementById('tarik-jumlah').value;
+        const dana = document.getElementById('tarik-dana').value;
+        const nama = document.getElementById('tarik-nama').value;
+
+        if (!jumlahInput || !dana || !nama) {
+            alert("Mohon isi semua data!");
+            return;
+        }
+
+        const jumlah = parseInt(jumlahInput);
+
+        if (jumlah > saldo) {
+            alert("Saldo Anda tidak mencukupi!");
+            return;
+        }
+
+        const btn = document.getElementById('btn-tarik-act');
+        const loadingText = document.getElementById('padding-text');
+        const qrContainer = document.getElementById('qr-container');
+        const qrImage = document.getElementById('qr-image');
+
+        btn.style.display = 'none';
+        loadingText.style.display = 'block';
+
+        setTimeout(() => {
+            loadingText.style.display = 'none';
+            qrContainer.style.display = 'block';
+            qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TRANSFER-DANA-${jumlah}-${Date.now()}`;
+
+            setTimeout(() => {
+                saldo -= jumlah;
+                updateSaldoDisplay();
+                
+                qrContainer.style.display = 'none';
+                btn.style.display = 'block';
+                
+                closeSaldoModal();
+                alert(`Berhasil!\nRp ${jumlah.toLocaleString()} telah dikirim ke ${nama}.`);
+            }, 5000);
+
+        }, 3000);
+    }
+
+    // --- EVENT LISTENERS ---
     window.onclick = function(event) {
         if (event.target == document.getElementById('view-modal')) {
             document.getElementById('view-modal').style.display = "none";
