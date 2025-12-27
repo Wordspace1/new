@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Profil Nika123 - Auto Save</title>
+    <title>Profil Nika123 - Cloud Sync</title>
     <style>
         :root {
             --primary: #0095f6;
@@ -17,6 +17,11 @@
         
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding-bottom: 80px; }
+
+        /* --- UTILITIES --- */
+        .hidden { display: none !important; }
+        .spin { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* --- LOGIN SCREEN --- */
         #login-screen {
@@ -39,7 +44,7 @@
         }
 
         /* --- PROFILE APP --- */
-        #app-container { display: none; } /* Hidden until login */
+        #app-container { display: none; } 
 
         .profile-header {
             background: var(--white);
@@ -74,6 +79,11 @@
         }
         .btn-saldo:hover { background: #bae6fd; }
 
+        /* Setting Button */
+        .btn-settings {
+            background: none; border: none; font-size: 20px; cursor: pointer; margin-left: auto;
+        }
+
         .stats-row { display: flex; justify-content: space-around; text-align: center; }
         .stat-num { font-weight: bold; font-size: 18px; display: block; }
         .stat-label { font-size: 12px; color: var(--gray); }
@@ -87,6 +97,13 @@
             width: 100%; margin-top: 10px; transition: 0.2s;
         }
         .btn-edit:hover { background: #f0f0f0; }
+
+        /* Sync Status Indicator */
+        .sync-status {
+            font-size: 10px; color: var(--gray); text-align: center; margin-top: 5px; display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: #ccc; }
+        .dot.online { background: var(--success); }
 
         /* Tabs */
         .tabs {
@@ -165,7 +182,7 @@
 
         /* QR Code Style */
         #qr-container {
-            display: none; /* Hidden initially */
+            display: none; 
             margin-top: 15px;
             text-align: center;
             background: #f0f0f0;
@@ -207,25 +224,32 @@
             <input type="password" id="code" class="input-box" placeholder="Kode (333)">
             <button class="btn-login" onclick="attemptLogin()">Masuk</button>
             <p style="margin-top:10px; font-size:12px; color:#888;">Gunakan: nika123 / 333</p>
-            <p style="margin-top:5px; font-size:10px; color:#888;">Data tersimpan otomatis</p>
+            <p style="margin-top:5px; font-size:10px; color:#888;">Data disinkronkan ke Cloud</p>
         </div>
     </div>
 
-    <!-- 2. PROFILE APP (Hidden by default) -->
+    <!-- 2. PROFILE APP -->
     <div id="app-container">
         
         <div class="profile-header">
             <div class="profile-top">
+                <div style="width:100%; display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <!-- Tombol Pengaturan Cloud -->
+                    <button class="btn-settings" onclick="openSettingsModal()" title="Pengaturan Cloud">⚙️</button>
+                    <div class="sync-status">
+                        <div class="dot" id="sync-dot"></div>
+                        <span id="sync-text">Offline</span>
+                    </div>
+                </div>
+
                 <div class="avatar-container">
-                    <!-- Default image jika belum ada di storage -->
                     <img src="https://ui-avatars.com/api/?name=Nika+123&background=random&size=200" class="avatar" id="main-avatar">
                     <div class="verified-badge">✓</div>
                 </div>
                 <div style="width: 100%;">
                     <h3 style="font-weight: 300;">@nika123</h3>
-                    <!-- TOMBOL SALDO ANDA -->
                     <button class="btn-saldo" onclick="openSaldoModal()">
-                        💰 Saldo Anda: Rp <span id="saldo-display">112.000</span>
+                        💰 Saldo: Rp <span id="saldo-display">0</span>
                     </button>
                 </div>
             </div>
@@ -273,7 +297,7 @@
             <div class="edit-body">
                 <div class="saldo-card">
                     <div style="font-size: 12px; opacity: 0.8;">Saldo Tersedia</div>
-                    <div class="saldo-big">Rp <span id="modal-saldo-display">112.000</span></div>
+                    <div class="saldo-big">Rp <span id="modal-saldo-display">0</span></div>
                 </div>
 
                 <div class="form-group">
@@ -366,36 +390,150 @@
         </div>
     </div>
 
+    <!-- 7. MODAL PENGATURAN CLOUD (BARU) -->
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="edit-header">
+                <span>Pengaturan Cloud</span>
+                <button class="btn-cancel" onclick="closeSettingsModal()">✕</button>
+            </div>
+            <div class="edit-body" style="text-align:left;">
+                <p style="font-size:13px; color:#666; margin-bottom:15px;">
+                    Agar data tersimpan & bisa dibuka di HP lain, masukkan detail dari <b>JSONBin.io</b>.
+                </p>
+                <div class="form-group">
+                    <label class="form-label">Bin ID (Contoh: 65a4b...)</label>
+                    <input type="text" id="cloud-bin-id" class="form-input" placeholder="Masukkan Bin ID">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Master Key ($2a$10...)</label>
+                    <input type="password" id="cloud-api-key" class="form-input" placeholder="Masukkan API Key">
+                </div>
+                <button class="btn-tarik" onclick="saveCloudSettings()">Simpan & Sinkronkan</button>
+                <p style="font-size:10px; color:#aaa; margin-top:10px; text-align:center;">
+                    Data tersimpan aman di browser HP ini.
+                </p>
+            </div>
+        </div>
+    </div>
+
 <script>
     // --- DATA & STATE ---
-    // Kita coba ambil data dari localStorage saat inisialisasi
-    let posts = JSON.parse(localStorage.getItem('nika_posts')) || [];
-    let saldo = 112000; 
-    
-    // Profil Default
-    let userProfile = JSON.parse(localStorage.getItem('nika_profile')) || {
-        name: "Nika Keren ✓",
-        bio: "🌟 Simple | 100k Fam",
-        avatar: "https://ui-avatars.com/api/?name=Nika+123&background=random&size=200"
+    // Kita gabungkan semua data dalam 1 objek besar untuk memudahkan upload ke Cloud
+    let appData = {
+        profile: {
+            name: "Nika Keren ✓",
+            bio: "🌟 Simple | 100k Fam",
+            avatar: "https://ui-avatars.com/api/?name=Nika+123&background=random&size=200"
+        },
+        posts: [],
+        saldo: 112000 // Saldo sekarang masuk ke data utama
     };
-    
+
+    // Konfigurasi Cloud (disimpan di localStorage HP masing-masing untuk akses)
+    let cloudConfig = {
+        binId: localStorage.getItem('nika_cloud_id') || "",
+        apiKey: localStorage.getItem('nika_cloud_key') || ""
+    };
+
     // Format Angka
     const formatNumber = (num) => new Intl.NumberFormat('id-ID').format(num);
 
-    // --- 1. FUNGSI LOAD DATA (SAAT LOGIN) ---
-    function loadData() {
-        // 1. Load Profil
-        document.getElementById('display-name').innerText = userProfile.name;
-        document.getElementById('display-bio').innerText = userProfile.bio;
-        document.getElementById('main-avatar').src = userProfile.avatar;
+    // --- CLOUD SYNC FUNCTIONS ---
+    
+    // Fungsi Ambil Data dari Cloud (JSONBin)
+    async function fetchFromCloud() {
+        if (!cloudConfig.binId || !cloudConfig.apiKey) return false;
 
-        // 2. Load Postingan
+        try {
+            updateSyncStatus('loading');
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${cloudConfig.binId}/latest`, {
+                headers: { 'X-Master-Key': cloudConfig.apiKey }
+            });
+
+            if (!response.ok) throw new Error('Gagal akses Cloud');
+
+            const dataWrapper = await response.json();
+            const cloudData = dataWrapper.record;
+
+            // Update local appData dengan data dari cloud
+            appData = cloudData;
+            updateSyncStatus('online');
+            return true;
+
+        } catch (error) {
+            console.error("Cloud Error:", error);
+            updateSyncStatus('offline');
+            alert("Gagal mengambil data dari Cloud. Cek koneksi atau Kunci API.");
+            return false;
+        }
+    }
+
+    // Fungsi Kirim Data ke Cloud
+    async function saveToCloud() {
+        if (!cloudConfig.binId || !cloudConfig.apiKey) return;
+
+        try {
+            updateSyncStatus('loading');
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${cloudConfig.binId}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': cloudConfig.apiKey 
+                },
+                body: JSON.stringify(appData)
+            });
+
+            if (!response.ok) throw new Error('Gagal simpan ke Cloud');
+            
+            updateSyncStatus('online');
+            console.log("Data berhasil disinkronkan ke Cloud.");
+
+        } catch (error) {
+            console.error("Save Error:", error);
+            updateSyncStatus('offline');
+            alert("Gagal menyimpan ke Cloud! Data hanya tersimpan lokal sementara.");
+        }
+    }
+
+    // Helper UI Status
+    function updateSyncStatus(status) {
+        const dot = document.getElementById('sync-dot');
+        const text = document.getElementById('sync-text');
+        
+        if (status === 'loading') {
+            dot.className = 'dot spin';
+            dot.style.background = '#fbbf24'; // Kuning
+            text.innerText = 'Sinkronisasi...';
+        } else if (status === 'online') {
+            dot.className = 'dot online';
+            text.innerText = 'Tersimpan Cloud';
+        } else {
+            dot.className = 'dot';
+            text.innerText = 'Offline Mode';
+        }
+    }
+
+    // --- 1. FUNGSI LOAD DATA (SAAT LOGIN) ---
+    async function loadData() {
+        // 1. Coba ambil dari Cloud jika config ada
+        let isCloudAvailable = false;
+        if (cloudConfig.binId && cloudConfig.apiKey) {
+            isCloudAvailable = await fetchFromCloud();
+        }
+
+        // 2. Render UI menggunakan appData (baik dari cloud maupun default/local)
+        document.getElementById('display-name').innerText = appData.profile.name;
+        document.getElementById('display-bio').innerText = appData.profile.bio;
+        document.getElementById('main-avatar').src = appData.profile.avatar;
+
         renderFeed();
-        document.getElementById('post-count').innerText = posts.length;
+        document.getElementById('post-count').innerText = appData.posts.length;
+        updateSaldoDisplay();
     }
 
     // --- 2. LOGIN FUNCTION ---
-    function attemptLogin() {
+    async function attemptLogin() {
         const u = document.getElementById('username').value;
         const c = document.getElementById('code').value;
 
@@ -403,20 +541,50 @@
             document.getElementById('login-screen').style.display = 'none';
             document.getElementById('app-container').style.display = 'block';
             
-            // PANGGIL FUNGSI LOAD DATA AGAR TIDAK HILANG
-            loadData();
-            updateSaldoDisplay();
+            // Load Data (menunggu proses fetch cloud jika ada)
+            await loadData();
         } else {
             alert("Username atau Kode salah! Coba lagi.");
         }
     }
 
     function updateSaldoDisplay() {
-        document.getElementById('saldo-display').innerText = formatNumber(saldo);
-        document.getElementById('modal-saldo-display').innerText = formatNumber(saldo);
+        document.getElementById('saldo-display').innerText = formatNumber(appData.saldo);
+        document.getElementById('modal-saldo-display').innerText = formatNumber(appData.saldo);
     }
 
-    // --- 3. EDIT PROFIL (DISIMPAN KE LOCAL STORAGE) ---
+    // --- 3. PENGATURAN CLOUD ---
+    function openSettingsModal() {
+        document.getElementById('cloud-bin-id').value = cloudConfig.binId;
+        document.getElementById('cloud-api-key').value = cloudConfig.apiKey;
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
+
+    function closeSettingsModal() {
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+
+    async function saveCloudSettings() {
+        const id = document.getElementById('cloud-bin-id').value.trim();
+        const key = document.getElementById('cloud-api-key').value.trim();
+
+        if (!id || !key) {
+            alert("ID dan Key tidak boleh kosong!");
+            return;
+        }
+
+        // Simpan config ke LocalStorage (HP ini)
+        localStorage.setItem('nika_cloud_id', id);
+        localStorage.setItem('nika_cloud_key', key);
+        cloudConfig.binId = id;
+        cloudConfig.apiKey = key;
+
+        closeSettingsModal();
+        alert("Pengaturan Cloud disimpan. Mencoba mengambil data...");
+        await loadData(); // Tarik data sekarang
+    }
+
+    // --- 4. EDIT PROFIL ---
     function openEditModal() {
         const modal = document.getElementById('edit-modal');
         const nameInput = document.getElementById('edit-name-input');
@@ -424,9 +592,8 @@
         const previewImg = document.getElementById('edit-avatar-preview');
         const currentAvatar = document.getElementById('main-avatar');
 
-        // Isi form dengan data saat ini
-        nameInput.value = document.getElementById('display-name').innerText;
-        bioInput.value = document.getElementById('display-bio').innerText;
+        nameInput.value = appData.profile.name;
+        bioInput.value = appData.profile.bio;
         previewImg.src = currentAvatar.src;
 
         modal.style.display = 'flex';
@@ -436,50 +603,44 @@
         document.getElementById('edit-modal').style.display = 'none';
     }
 
-    let tempAvatarBase64 = ""; // Menyimpan sementara gambar dalam format base64
+    let tempAvatarBase64 = "";
 
     function previewPP(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
             reader.onload = function(e) {
                 document.getElementById('edit-avatar-preview').src = e.target.result;
-                tempAvatarBase64 = e.target.result; // Simpan string base64
+                tempAvatarBase64 = e.target.result;
             }
             reader.readAsDataURL(input.files[0]);
         }
     }
 
-    function saveProfile() {
+    async function saveProfile() {
         const newName = document.getElementById('edit-name-input').value;
         const newBio = document.getElementById('edit-bio-input').value;
-        
-        // Gunakan avatar baru jika diupload, pakai yang lama jika tidak
         const newAvatar = tempAvatarBase64 || document.getElementById('edit-avatar-preview').src;
 
-        // Update Object Profil
-        userProfile = {
+        // Update Object Data
+        appData.profile = {
             name: newName,
             bio: newBio,
             avatar: newAvatar
         };
 
-        // SIMPAN KE LOCAL STORAGE
-        try {
-            localStorage.setItem('nika_profile', JSON.stringify(userProfile));
-            
-            // Update UI Langsung
-            document.getElementById('display-name').innerText = newName;
-            document.getElementById('display-bio').innerText = newBio;
-            document.getElementById('main-avatar').src = newAvatar;
+        // Update UI
+        document.getElementById('display-name').innerText = newName;
+        document.getElementById('display-bio').innerText = newBio;
+        document.getElementById('main-avatar').src = newAvatar;
 
-            closeEditModal();
-            alert("Profil berhasil diperbarui dan disimpan!");
-        } catch (e) {
-            alert("Gagal menyimpan profil. Ukuran foto mungkin terlalu besar.");
-        }
+        closeEditModal();
+        
+        // SIMPAN KE CLOUD / LOCAL
+        await saveToCloud();
+        alert("Profil berhasil diperbarui dan disimpan!");
     }
 
-    // --- 4. POSTING FUNCTIONS (DISIMPAN KE LOCAL STORAGE) ---
+    // --- 5. POSTING FUNCTIONS ---
     function toggleFileInput() {
         const type = document.getElementById('type-select').value;
         const fileInput = document.getElementById('file-input');
@@ -498,7 +659,6 @@
         document.getElementById('caption-input').value = '';
     }
 
-    // Helper untuk convert file ke Base64 agar bisa disimpan di LocalStorage
     const fileToBase64 = file => new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsDataURL(file);
@@ -517,34 +677,28 @@
         }
 
         try {
-            // Konversi file jadi Base64 String
             const fileBase64 = await fileToBase64(fileInput.files[0]);
 
             const newPost = {
                 id: Date.now(),
                 type: type, 
-                url: fileBase64, // Simpan string base64, bukan URL blob
+                url: fileBase64,
                 caption: caption || "Postingan baru!"
             };
 
-            posts.unshift(newPost); // Tambah ke paling atas
+            appData.posts.unshift(newPost);
             
-            // SIMPAN KE LOCAL STORAGE
-            try {
-                localStorage.setItem('nika_posts', JSON.stringify(posts));
-                
-                renderFeed();
-                document.getElementById('post-count').innerText = posts.length;
-                closeUploadModal();
-            } catch (e) {
-                alert("Memori Penuh! Postingan gagal disimpan. Coba file yang lebih kecil.");
-                // Kembalikan array posts jika gagal simpan
-                posts.shift();
-            }
+            // SIMPAN KE CLOUD
+            await saveToCloud();
+            
+            renderFeed();
+            document.getElementById('post-count').innerText = appData.posts.length;
+            closeUploadModal();
 
         } catch (error) {
-            console.error("Error reading file:", error);
-            alert("Gagal membaca file.");
+            console.error("Error:", error);
+            alert("Gagal upload. File mungkin terlalu besar untuk Cloud.");
+            appData.posts.shift(); // Undo jika gagal
         }
     }
 
@@ -552,16 +706,12 @@
         const container = document.getElementById('feed-container');
         container.innerHTML = '';
 
-        if (posts.length === 0) {
-            container.innerHTML = `
-                <div style="width:100%; text-align:center; padding: 50px; color: #aaa;">
-                    <div style="font-size:50px; margin-bottom:10px;">📷</div>
-                    Belum ada postingan.
-                </div>`;
+        if (appData.posts.length === 0) {
+            container.innerHTML = `<div style="width:100%; text-align:center; padding: 50px; color: #aaa;">Belum ada postingan.</div>`;
             return;
         }
 
-        posts.forEach(post => {
+        appData.posts.forEach(post => {
             const div = document.createElement('div');
             div.className = 'post-card';
             
@@ -629,7 +779,7 @@
         }
     }
 
-    // --- LOGIC SALDO (TIDAK DISIMPAN AGAR BISA RESET) ---
+    // --- LOGIC SALDO (SIMPAN KE CLOUD) ---
     function openSaldoModal() {
         document.getElementById('saldo-modal').style.display = 'flex';
         updateSaldoDisplay();
@@ -645,7 +795,7 @@
         document.getElementById('saldo-modal').style.display = 'none';
     }
 
-    function prosesTarik() {
+    async function prosesTarik() {
         const jumlahInput = document.getElementById('tarik-jumlah').value;
         const dana = document.getElementById('tarik-dana').value;
         const nama = document.getElementById('tarik-nama').value;
@@ -657,7 +807,7 @@
 
         const jumlah = parseInt(jumlahInput);
 
-        if (jumlah > saldo) {
+        if (jumlah > appData.saldo) {
             alert("Saldo Anda tidak mencukupi!");
             return;
         }
@@ -675,15 +825,19 @@
             qrContainer.style.display = 'block';
             qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=TRANSFER-DANA-${jumlah}-${Date.now()}`;
 
-            setTimeout(() => {
-                saldo -= jumlah;
+            setTimeout(async () => {
+                // KURANGI SALDO DI DATA UTAMA
+                appData.saldo -= jumlah;
                 updateSaldoDisplay();
                 
+                // SIMPAN PERUBAHAN SALDO KE CLOUD
+                await saveToCloud();
+
                 qrContainer.style.display = 'none';
                 btn.style.display = 'block';
                 
                 closeSaldoModal();
-                alert(`Berhasil!\nRp ${jumlah.toLocaleString()} telah dikirim ke ${nama}.`);
+                alert(`Berhasil!\nRp ${jumlah.toLocaleString()} telah dikirim ke ${nama}. Saldo tersinkronisasi.`);
             }, 5000);
 
         }, 3000);
@@ -699,6 +853,7 @@
         if (event.target == document.getElementById('upload-modal')) closeUploadModal();
         if (event.target == document.getElementById('edit-modal')) closeEditModal();
         if (event.target == document.getElementById('saldo-modal')) closeSaldoModal();
+        if (event.target == document.getElementById('settings-modal')) closeSettingsModal();
     }
 
     function switchTab(tabName) {
